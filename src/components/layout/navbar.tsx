@@ -1,7 +1,21 @@
+'use client'
+
 import React from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export function Navbar() {
+  const { user, loading } = useAuth();
+  const supabase = createClient();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
   return (
     <nav className="bg-white border-b">
       <div className="container mx-auto px-4">
@@ -19,12 +33,27 @@ export function Navbar() {
             <Link href="/create-poll" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md">
               Create Poll
             </Link>
-            <Link href="/login" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md">
-              Login
-            </Link>
-            <Link href="/register" className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-md">
-              Sign Up
-            </Link>
+            {!loading && (
+              <>
+                {user ? (
+                  <>
+                    <span className="text-gray-700">{user.email}</span>
+                    <button onClick={handleLogout} className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md">
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md">
+                      Login
+                    </Link>
+                    <Link href="/register" className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-md">
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </>
+            )}
           </div>
           
           <div className="md:hidden">

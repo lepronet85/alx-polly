@@ -1,11 +1,45 @@
-import React from 'react';
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/AuthContext'
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (user) {
+      router.push('/polls')
+    }
+  }, [user, router])
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    router.push('/polls')
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
         <h1 className="text-2xl font-bold mb-6">Login</h1>
-        <form className="space-y-4">
+        {error && <p className="text-red-500 text-center">{error}</p>}
+        <form className="space-y-4" onSubmit={handleLogin}>
           <div className="space-y-2">
             <label htmlFor="email" className="block text-sm font-medium">Email</label>
             <input
@@ -13,6 +47,8 @@ export default function LoginPage() {
               type="email"
               placeholder="Enter your email"
               className="w-full px-3 py-2 border rounded-md"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -22,6 +58,8 @@ export default function LoginPage() {
               type="password"
               placeholder="Enter your password"
               className="w-full px-3 py-2 border rounded-md"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           <button
