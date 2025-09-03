@@ -10,7 +10,11 @@ type AuthContextType = {
   loading: boolean;
 };
 
-const AuthContext = createContext<AuthContextType>({ user: null, session: null, loading: true });
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  loading: true,
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const supabase = createClient();
@@ -20,16 +24,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
+      try {
+        console.log("Getting session...");
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("Error getting session:", error);
+          setLoading(false);
+          return;
+        }
+
+        console.log("Session data:", data);
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        setLoading(false);
+      } catch (err) {
+        console.error("Exception getting session:", err);
+        setLoading(false);
+      }
     };
 
     getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state changed:", event, session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);

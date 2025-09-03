@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   useForm,
   useFieldArray,
-  Controller,
   SubmitHandler,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,31 +12,54 @@ import {
   createPollSchema,
   CreatePollFormValues,
 } from "@/lib/validations/poll-schema";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { PollWithOptions } from "@/lib/types/poll";
 
-export default function CreatePollPage() {
+export default function EditPollPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  console.log("Auth state:", { user, loading });
 
   const {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<CreatePollFormValues>({
     resolver: zodResolver(createPollSchema) as any,
-    defaultValues: {
-      title: "",
-      options: ["", ""],
-      end_date: null,
-    },
     mode: "onBlur",
   });
+
+  useEffect(() => {
+    async function fetchPoll() {
+      try {
+        const response = await fetch(`/api/polls/${id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch poll');
+        }
+        const data = await response.json();
+        const poll = data.poll as PollWithOptions;
+        if (poll) {
+          reset({
+            title: poll.title,
+            options: poll.options.map(o => o.text),
+            end_date: poll.end_date ? new Date(poll.end_date).toISOString().split('T')[0] : null,
+          });
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      }
+    }
+    if (id) {
+      fetchPoll();
+    }
+  }, [id, reset]);
 
   const { fields, append, remove } = useFieldArray<
     CreatePollFormValues,
@@ -48,18 +70,8 @@ export default function CreatePollPage() {
   });
 
   const onSubmit: SubmitHandler<CreatePollFormValues> = async (data) => {
-    console.log("Current user:", user);
-    console.log("Loading state:", loading);
-    console.log("Form data:", data);
-
-    if (loading) {
-      setError("Vérification de votre authentification...");
-      return;
-    }
-
     if (!user) {
-      console.error("No user found in client-side auth context");
-      setError("You must be logged in to create a poll");
+      setError("You must be logged in to edit a poll");
       router.push("/login");
       return;
     }
@@ -68,28 +80,22 @@ export default function CreatePollPage() {
     setError(null);
 
     try {
-      console.log("Submitting poll data to API");
-      const response = await fetch("/api/polls", {
-        method: "POST",
+      const response = await fetch(`/api/polls/${id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-        credentials: "include", // Important pour inclure les cookies d'authentification
       });
 
-      console.log("API response status:", response.status);
       const result = await response.json();
-      console.log("API response data:", result);
 
       if (!response.ok) {
-        throw new Error(result.error || "Failed to create poll");
+        throw new Error(result.error || "Failed to update poll");
       }
 
-      // Redirect to the newly created poll
-      router.push(`/polls/${result.poll.id}`);
+      router.push(`/polls/${id}`);
     } catch (err) {
-      console.error("Error creating poll:", err);
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
@@ -102,19 +108,13 @@ export default function CreatePollPage() {
     <div className="container mx-auto py-10 px-4">
       <div className="max-w-2xl mx-auto">
         <Link
-          href="/polls"
+          href={`/polls/${id}`}
           className="text-blue-600 hover:underline mb-4 inline-block"
         >
-          ← Back to Polls
+          ← Back to Poll
         </Link>
 
-        <h1 className="text-3xl font-bold mb-6">Create a New Poll</h1>
-
-        {loading && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-6">
-            Vérification de votre authentification...
-          </div>
-        )}
+        <h1 className="text-3xl font-bold mb-6">Edit Poll</h1>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
@@ -125,7 +125,6 @@ export default function CreatePollPage() {
         <form
           className="space-y-6"
           onSubmit={handleSubmit(onSubmit)}
-          style={{ opacity: loading ? 0.7 : 1 }}
         >
           <div className="space-y-2">
             <label htmlFor="title" className="block text-sm font-medium">
@@ -160,7 +159,7 @@ export default function CreatePollPage() {
                     }`}
                     {...register(`options.${index}`)}
                   />
-                  {index > 1 && (
+                  {fields.length > 2 && (
                     <button
                       type="button"
                       onClick={() => remove(index)}
@@ -171,19 +170,6 @@ export default function CreatePollPage() {
                   )}
                 </div>
               ))}
-              {errors.options &&
-                typeof errors.options === "object" &&
-                !Array.isArray(errors.options) && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.options.message}
-                  </p>
-                )}
-              {Array.isArray(errors.options) &&
-                errors.options.some((error) => error) && (
-                  <p className="text-red-500 text-sm mt-1">
-                    All options must be filled
-                  </p>
-                )}
             </div>
             {fields.length < 10 && (
               <button
@@ -216,7 +202,7 @@ export default function CreatePollPage() {
                 isSubmitting ? "opacity-70 cursor-not-allowed" : ""
               }`}
             >
-              {isSubmitting ? "Creating..." : "Create Poll"}
+              {isSubmitting ? "Updating..." : "Update Poll"}
             </button>
           </div>
         </form>

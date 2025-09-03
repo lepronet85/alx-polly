@@ -2,11 +2,15 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // Create a new response from the request
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
+  
+  // Log the cookies for debugging
+  console.log('Request cookies:', request.cookies.getAll());
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
