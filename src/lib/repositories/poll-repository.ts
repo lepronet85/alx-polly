@@ -10,13 +10,17 @@ export class PollRepository {
   }
 
   async createPoll(data: CreatePollInput, userId: string): Promise<PollWithOptions | null> {
-    // Start a transaction by using a single connection
+    const { title, end_date, options: optionTexts } = data;
+
+    // This operation is not transactional. If creating poll options or analytics fails,
+    // the poll will still be created. For robust applications, consider using a database transaction
+    // (e.g., via an RPC function) to ensure atomicity.
     const { data: poll, error: pollError } = await this.supabase
       .from('polls')
       .insert({
-        title: data.title,
+        title,
         created_by: userId,
-        end_date: data.end_date,
+        end_date,
       })
       .select()
       .single();
@@ -27,7 +31,7 @@ export class PollRepository {
     }
 
     // Create poll options
-    const pollOptionsData = data.options.map((option) => ({
+    const pollOptionsData = optionTexts.map((option) => ({
       poll_id: poll.id,
       text: option,
     }));
@@ -44,13 +48,11 @@ export class PollRepository {
     }
 
     // Create analytics entry
-    await this.supabase
-      .from('poll_analytics')
-      .insert({
-        poll_id: poll.id,
-        views: 0,
-        shares: 0,
-      });
+    await this.supabase.from('poll_analytics').insert({
+      poll_id: poll.id,
+      views: 0,
+      shares: 0,
+    });
 
     return {
       ...poll,
@@ -59,117 +61,73 @@ export class PollRepository {
   }
 
   async getPollById(id: string): Promise<PollWithOptions | null> {
-    const { data: poll, error: pollError } = await this.supabase
+    const { data, error } = await this.supabase
       .from('polls')
-      .select('*')
+      .select('*, poll_options(*), votes(count)')
       .eq('id', id)
       .single();
 
-    if (pollError || !poll) {
-      console.error('Error fetching poll:', pollError);
+    if (error || !data) {
+      console.error('Error fetching poll:', error);
       return null;
     }
 
-    const { data: options, error: optionsError } = await this.supabase
-      .from('poll_options')
-      .select('*')
-      .eq('poll_id', id);
-
-    if (optionsError) {
-      console.error('Error fetching poll options:', optionsError);
-      return null;
-    }
-
-    // Get vote count
-    const { count, error: countError } = await this.supabase
-      .from('votes')
-      .select('*', { count: 'exact', head: true })
-      .eq('poll_id', id);
+    const { poll_options, votes, ...poll } = data;
 
     return {
       ...poll,
-      options: options || [],
+      options: poll_options || [],
       _count: {
-        votes: count || 0,
+        votes: votes[0]?.count || 0,
       },
     };
   }
 
   async getAllPolls(): Promise<PollWithOptions[]> {
-    const { data: polls, error: pollsError } = await this.supabase
+    const { data, error } = await this.supabase
       .from('polls')
-      .select('*')
+      .select('*, poll_options(*), votes(count)')
       .order('created_at', { ascending: false });
 
-    if (pollsError || !polls) {
-      console.error('Error fetching polls:', pollsError);
+    if (error || !data) {
+      console.error('Error fetching polls:', error);
       return [];
     }
 
-    // For each poll, get its options
-    const pollsWithOptions = await Promise.all(
-      polls.map(async (poll) => {
-        const { data: options } = await this.supabase
-          .from('poll_options')
-          .select('*')
-          .eq('poll_id', poll.id);
-
-        // Get vote count
-        const { count } = await this.supabase
-          .from('votes')
-          .select('*', { count: 'exact', head: true })
-          .eq('poll_id', poll.id);
-
-        return {
-          ...poll,
-          options: options || [],
-          _count: {
-            votes: count || 0,
-          },
-        };
-      })
-    );
-
-    return pollsWithOptions;
+    return data.map((p) => {
+      const { poll_options, votes, ...poll } = p;
+      return {
+        ...poll,
+        options: poll_options || [],
+        _count: {
+          votes: votes[0]?.count || 0,
+        },
+      };
+    });
   }
 
   async getUserPolls(userId: string): Promise<PollWithOptions[]> {
-    const { data: polls, error: pollsError } = await this.supabase
+    const { data, error } = await this.supabase
       .from('polls')
-      .select('*')
+      .select('*, poll_options(*), votes(count)')
       .eq('created_by', userId)
       .order('created_at', { ascending: false });
 
-    if (pollsError || !polls) {
-      console.error('Error fetching user polls:', pollsError);
+    if (error || !data) {
+      console.error('Error fetching user polls:', error);
       return [];
     }
 
-    // For each poll, get its options
-    const pollsWithOptions = await Promise.all(
-      polls.map(async (poll) => {
-        const { data: options } = await this.supabase
-          .from('poll_options')
-          .select('*')
-          .eq('poll_id', poll.id);
-
-        // Get vote count
-        const { count } = await this.supabase
-          .from('votes')
-          .select('*', { count: 'exact', head: true })
-          .eq('poll_id', poll.id);
-
-        return {
-          ...poll,
-          options: options || [],
-          _count: {
-            votes: count || 0,
-          },
-        };
-      })
-    );
-
-    return pollsWithOptions;
+    return data.map((p) => {
+      const { poll_options, votes, ...poll } = p;
+      return {
+        ...poll,
+        options: poll_options || [],
+        _count: {
+          votes: votes[0]?.count || 0,
+        },
+      };
+    });
   }
 
   async deletePoll(id: string): Promise<void> {
@@ -182,17 +140,21 @@ export class PollRepository {
   }
 
   async updatePoll(id: string, data: CreatePollInput): Promise<PollWithOptions | null> {
+    const { title, end_date, options: optionTexts } = data;
+    
+    // This operation is not transactional. If deleting old options or creating new ones fails,
+    // the poll update might be partial. For robust applications, consider a database transaction.
     const { data: poll, error: pollError } = await this.supabase
       .from('polls')
       .update({
-        title: data.title,
-        end_date: data.end_date,
+        title,
+        end_date,
       })
       .eq('id', id)
       .select()
       .single();
 
-    if (pollError) {
+    if (pollError || !poll) {
       console.error('Error updating poll:', pollError);
       return null;
     }
@@ -209,7 +171,7 @@ export class PollRepository {
     }
 
     // Create new options
-    const pollOptionsData = data.options.map((option, index) => ({
+    const pollOptionsData = optionTexts.map((option, index) => ({
       poll_id: id,
       text: option,
       position: index,
