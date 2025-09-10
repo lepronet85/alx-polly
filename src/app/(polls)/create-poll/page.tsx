@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Poll Creation Page Component
+ * 
+ * This component provides a form interface for users to create new polls.
+ * It handles form validation, submission, and redirects users to their newly created poll.
+ * Authentication is required - unauthenticated users are redirected to the login page.
+ */
+
 import React, { useState } from "react";
 import Link from "next/link";
 import {
@@ -16,14 +24,24 @@ import {
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
+/**
+ * Main component for creating polls
+ * Handles form state, validation, and submission process
+ */
 export default function CreatePollPage() {
+  // Get authentication state from context
   const { user, loading } = useAuth();
   const router = useRouter();
+  // Local state for form submission status and errors
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   console.log("Auth state:", { user, loading });
 
+  /**
+   * Initialize react-hook-form with zod validation
+   * Sets up form controls, validation, and default values
+   */
   const {
     register,
     handleSubmit,
@@ -33,12 +51,16 @@ export default function CreatePollPage() {
     resolver: zodResolver(createPollSchema) as any,
     defaultValues: {
       title: "",
-      options: ["", ""],
+      options: ["", ""], // Start with two empty options
       end_date: null,
     },
-    mode: "onBlur",
+    mode: "onBlur", // Validate fields when they lose focus
   });
 
+  /**
+   * Field array hook for dynamically managing poll options
+   * Allows adding and removing options in the form
+   */
   const { fields, append, remove } = useFieldArray<
     CreatePollFormValues,
     "options"
@@ -47,16 +69,24 @@ export default function CreatePollPage() {
     name: "options",
   });
 
+  /**
+   * Form submission handler
+   * Validates user authentication, submits poll data to API, and handles responses
+   * 
+   * @param data - The validated form data containing poll information
+   */
   const onSubmit: SubmitHandler<CreatePollFormValues> = async (data) => {
     console.log("Current user:", user);
     console.log("Loading state:", loading);
     console.log("Form data:", data);
 
+    // Prevent submission while authentication is being checked
     if (loading) {
       setError("Vérification de votre authentification...");
       return;
     }
 
+    // Redirect unauthenticated users to login
     if (!user) {
       console.error("No user found in client-side auth context");
       setError("You must be logged in to create a poll");
@@ -64,36 +94,41 @@ export default function CreatePollPage() {
       return;
     }
 
+    // Update UI state for submission
     setIsSubmitting(true);
     setError(null);
 
     try {
       console.log("Submitting poll data to API");
+      // Send poll data to the API endpoint
       const response = await fetch("/api/polls", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-        credentials: "include", // Important pour inclure les cookies d'authentification
+        credentials: "include", // Include authentication cookies
       });
 
       console.log("API response status:", response.status);
       const result = await response.json();
       console.log("API response data:", result);
 
+      // Handle API errors
       if (!response.ok) {
         throw new Error(result.error || "Failed to create poll");
       }
 
-      // Redirect to the newly created poll
+      // Redirect to the newly created poll on success
       router.push(`/polls/${result.poll.id}`);
     } catch (err) {
+      // Handle and display any errors that occur during submission
       console.error("Error creating poll:", err);
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred"
       );
     } finally {
+      // Reset submission state regardless of outcome
       setIsSubmitting(false);
     }
   };

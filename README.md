@@ -1,24 +1,16 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Polly - Interactive Polling Application
 
-## Getting Started
+## Project Overview
 
-First, run the development server:
+Polly is a modern, interactive polling application that allows users to create, share, and vote on polls. Built with a focus on user experience and real-time updates, Polly makes gathering opinions and feedback simple and engaging.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Tech Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+- **Frontend**: Next.js 14 (App Router), React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Form Handling**: React Hook Form with Zod validation
+- **UI Components**: Custom components with Tailwind CSS
 
 ## Screenshots
 
@@ -28,18 +20,97 @@ This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-opti
 ![Screenshot 4](./screenshots/4.png)
 ![Screenshot 5](./screenshots/5.png)
 
+## Setup and Installation
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- Supabase account (free tier works fine)
+
+### Environment Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/polly.git
+   cd polly
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env.local` file in the root directory with the following variables:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+### Supabase Configuration
+
+1. Create a new Supabase project
+2. Set up the database schema using the SQL in `src/lib/db.sql`
+3. Configure Row Level Security (RLS) policies as defined in the SQL file
+4. Enable Email/Password authentication in the Auth settings
+
+## Running Locally
+
+1. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+2. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Usage Examples
+
+### Creating a Poll
+
+1. Sign up or log in to your account
+2. Navigate to "Create Poll" from the navigation menu
+3. Enter your poll question
+4. Add at least two options (you can add up to 10)
+5. Optionally set an end date
+6. Click "Create Poll"
+
+### Voting on a Poll
+
+1. Browse available polls on the homepage or via direct link
+2. Review the poll question and available options
+3. Click on your preferred option
+4. Click "Vote Now" to submit your vote
+5. View real-time results showing how others have voted
+
+## Testing
+
+Run the test suite with:
+
+```bash
+npm test
+```
+
+For end-to-end tests:
+
+```bash
+npm run test:e2e
+```
+
+## Project Structure
+
+- `/app` - Next.js app router pages and API routes
+- `/components` - Reusable UI components
+- `/context` - React context providers (Auth)
+- `/lib` - Utility functions, types, and database repositories
+  - `/repositories` - Database access layer
+  - `/types` - TypeScript type definitions
+  - `/validations` - Zod validation schemas
+
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+To learn more about the technologies used in this project:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
-# alx-polly
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.io/docs)
+- [React Hook Form](https://react-hook-form.com/)
+- [Zod Validation](https://github.com/colinhacks/zod)
+- [Tailwind CSS](https://tailwindcss.com/docs)
